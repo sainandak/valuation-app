@@ -52,7 +52,9 @@ const cCalcRows=cItems.map(it=>{
   return{...it,gross,stone,net,purity,fine,activeRate,val}
 })
 const cTotalGross=cCalcRows.reduce((s,x)=>s+x.gross,0),cTotalStone=cCalcRows.reduce((s,x)=>s+x.stone,0),cTotalNet=cCalcRows.reduce((s,x)=>s+x.net,0),cTotalFine=cCalcRows.reduce((s,x)=>s+x.fine,0),cTotalVal=cCalcRows.reduce((s,x)=>s+x.val,0)
+const validCalc=()=>{const bad=cCalcRows.find(x=>x.gross<=0||x.activeRate<=0||x.purity<=0||x.purity>100||x.stone<0||x.stone>x.gross);if(bad){flash('Each estimate needs positive weight, rate and purity; stone weight cannot exceed gross weight');return false}return true}
 const shareCalc=()=>{
+  if(!validCalc())return
   if(!cTotalVal&&!cTotalGross){flash('Enter weight and rate to share');return}
   const lines=[
     shop.name||'Sri Vijaya Laxmi Jewellery Works',
@@ -84,17 +86,18 @@ const add=p=>setR(x=>({...x,items:[...x.items.filter(i=>i.name||i.gross||i.fixed
 const rows=r.items.map(i=>({i,c:calc(i,r)}))
 const total=rows.reduce((s,x)=>s+x.c.value,0)
 const requireValid=()=>{const errors=validateReport(r,list);if(errors.length){flash(errors[0]);return false}return true}
-const save=()=>{
+const save=async()=>{
   if(!requireValid())return;
   const updated={...r,total};
-  setList(l=>[{...updated},...l.filter(x=>x.id!==r.id)]);
-  saveCloudReport(updated).catch(()=>{});
-  flash('Saved & Synced ☁️');
+  const result=await saveCloudReport(updated);
+  if(!result.ok){flash(result.error||'Could not save to cloud');return}
+  setR(result.report);setList(l=>[result.report,...l.filter(x=>x.id!==result.report.id)]);
+  flash('Saved & synced');
 }
 useEffect(()=>{
-  syncAllReports(list).then(m=>{
-    if(m && m.length>0 && JSON.stringify(m)!==JSON.stringify(list)){
-      setList(m);
+  syncAllReports().then(result=>{
+    if(result.ok){
+      setList(result.reports);
     }
   }).catch(()=>{});
 },[])
@@ -270,7 +273,7 @@ return <div className="app">
 
   <div className="calc-actions">
     <button className="p" onClick={shareCalc}>↗️ Share via WhatsApp</button>
-    <button onClick={()=>window.print()}>🖨️ Print / PDF Slip</button>
+    <button onClick={()=>{if(validCalc())window.print()}}>🖨️ Print / PDF Slip</button>
     <button className="x" onClick={resetCalc}>🔄 Reset</button>
   </div>
 </div>
@@ -333,9 +336,9 @@ return <div className="app">
 
 {tab==='saved'&&<div className="card noprint"><h2>Saved reports</h2><input placeholder="Search owner, certificate or date" value={q} onChange={e=>setQ(e.target.value)}/>
 {shown.length?shown.map(x=><div className="li" key={x.id}><div><b>{x.owner||'(no owner)'}</b><small>{x.date} · {x.cert||'No cert'} · {inr(x.total)}</small></div>
-<div className="li-actions"><button onClick={()=>{setR(x);setTab('new')}}>Open</button><button className="x" onClick={()=>{setR({...x,id:uid(),date:today()});setTab('new')}}>Copy</button><button className="x danger" onClick={()=>{if(confirm('Delete this report?')){deleteCloudReport(x.id).catch(()=>{});setList(l=>l.filter(y=>y.id!==x.id));flash('Report deleted')}}}>Delete</button></div></div>):<p>No saved reports yet.</p>}</div>}
+<div className="li-actions"><button onClick={()=>{setR(x);setTab('new')}}>Open</button><button className="x" onClick={()=>{setR({...x,id:uid(),date:today(),version:0});setTab('new')}}>Copy</button><button className="x danger" onClick={async()=>{if(confirm('Delete this report?')){const result=await deleteCloudReport(x.id,x.version);if(result.ok){setList(l=>l.filter(y=>y.id!==x.id));flash('Report deleted')}else flash(result.error||'Could not delete report')}}}>Delete</button></div></div>):<p>No saved reports yet.</p>}</div>}
 
-{tab==='set'&&<div className="noprint"><div className="card"><h2>☁️ Cloud Sync (Supabase Free)</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Connected to: <b>kqhmpqideymdocqlsjcm</b> (Mumbai Region)<br/>Reports automatically sync across your PC, laptop, and mobile devices.</p><button onClick={()=>syncAllReports(list).then(m=>{setList(m);flash('Cloud sync complete! ☁️')})}>🔄 Sync Now with Cloud</button></div>
+{tab==='set'&&<div className="noprint"><div className="card"><h2>☁️ Secure cloud sync</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Reports are loaded from the authenticated cloud account. Conflicts must be refreshed before saving.</p><button onClick={async()=>{const result=await syncAllReports();if(result.ok){setList(result.reports);flash('Cloud sync complete')}else flash(result.error||'Cloud sync failed')}}>🔄 Refresh from cloud</button></div>
 <div className="card"><h2>Defaults for new reports</h2><L t="Certificate no."><input value={cfg.cert||''} onChange={e=>{setCfg({...cfg,cert:e.target.value});flash('Settings saved')}}/></L><div className="g2"><L t="Valuer name"><input value={cfg.valuer} onChange={e=>{setCfg({...cfg,valuer:e.target.value});flash('Settings saved')}}/></L><L t="Valuer title (Footer)"><input value={cfg.valuerTitle||'Valuer'} onChange={e=>{setCfg({...cfg,valuerTitle:e.target.value});flash('Settings saved')}}/></L></div><L t="Place"><input value={cfg.place} onChange={e=>{setCfg({...cfg,place:e.target.value});flash('Settings saved')}}/></L></div>
 <div className="card"><h2>Shop details (printed on every report)</h2><L t="Shop name"><input value={shop.name} onChange={e=>{setShop({...shop,name:e.target.value});flash('Shop details saved')}}/></L><L t="Address"><input value={shop.addr} onChange={e=>{setShop({...shop,addr:e.target.value});flash('Shop details saved')}}/></L><L t="Phone numbers"><input value={shop.phone} onChange={e=>{setShop({...shop,phone:e.target.value});flash('Shop details saved')}}/></L><L t="Footer note (optional)"><input value={shop.note} onChange={e=>{setShop({...shop,note:e.target.value});flash('Shop details saved')}}/></L>
 <L t="Logo"><input type="file" accept="image/*" onChange={e=>e.target.files[0]&&logo(e.target.files[0])}/></L>{shop.logo&&<p><img src={shop.logo} alt="" style={{maxHeight:60}}/> <button className="x" onClick={()=>{setShop({...shop,logo:''});flash('Logo removed')}}>Remove logo</button></p>}</div>
