@@ -33,9 +33,10 @@ const[cfg,setCfg]=useLS('cfg',{valuer:'',valuerTitle:'Valuer',place:'',silver:''
 const[presets,setPresets]=useLS('presets',DEF)
 const[list,setList]=useLS('reports',[])
 const[shop,setShop]=useLS('shop',{name:'Sri Vijaya Laxmi Jewellery Works',addr:'',phone:'',note:'',logo:''})
-const fresh=()=>({id:uid(),date:today(),owner:'',cert:cfg.cert||'',place:cfg.place,footerPlace:'',valuer:cfg.valuer,valuerTitle:cfg.valuerTitle||'Valuer',silverG:cfg.silverG||'',goldG:cfg.goldG||'',items:[newItem()]})
+const fresh=()=>({id:uid(),date:today(),owner:'',phone:'',cert:cfg.cert||'',place:cfg.place,footerPlace:'',valuer:cfg.valuer,valuerTitle:cfg.valuerTitle||'Valuer',silverG:cfg.silverG||'',goldG:cfg.goldG||'',items:[newItem()]})
 const[r,setR]=useState(fresh)
 const[q,setQ]=useState('')
+const[period,setPeriod]=useState('all')
 const[pCat,setPCat]=useState('All')
 const newCItem=(metal='Gold')=>({id:uid(),name:'',metal,rate:'',gross:'',stone:'',purity:''})
 const[cGoldRate,setCGoldRate]=useState('')
@@ -112,7 +113,83 @@ const exp=()=>{const a=document.createElement('a'),url=URL.createObjectURL(new B
 const imp=f=>{const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o||typeof o!=='object'||(o.list!==undefined&&!Array.isArray(o.list))||(o.presets!==undefined&&!Array.isArray(o.presets)))throw new Error();o.cfg&&setCfg(o.cfg);o.presets&&setPresets(o.presets);o.list&&setList(o.list);o.shop&&setShop(o.shop);flash('Backup restored')}catch{flash('Not a valid backup file')}};rd.onerror=()=>flash('Could not read backup file');rd.readAsText(f)}
 const share=()=>{if(!requireValid())return;const t=[shop.name,'Valuation '+r.date+(r.cert?' No. '+r.cert:''),'Owner: '+r.owner,...rows.filter(({i})=>i.name||i.gross||i.fixed).map(({i,c},n)=>`${n+1}. ${i.name} ${i.gross?num(i.gross)+' g ':''}${inr(c.value)}`),'Total: '+inr(total),shop.phone].filter(Boolean).join('\n');navigator.share?navigator.share({title:'Valuation',text:t}).catch(()=>{}):window.open('https://wa.me/?text='+encodeURIComponent(t))}
 const logo=f=>{const rd=new FileReader();rd.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,300/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=im.width*k;c.height=im.height*k;c.getContext('2d').drawImage(im,0,0,c.width,c.height);setShop(x=>({...x,logo:c.toDataURL('image/png')}))};im.src=rd.result};rd.readAsDataURL(f)}
-const shown=list.filter(x=>(x.owner+x.cert+x.date).toLowerCase().includes(q.toLowerCase()))
+const shown=list.filter(x=>(x.owner+x.cert+x.date+(x.phone||'')).toLowerCase().includes(q.toLowerCase()))
+const periodList=list.filter(x=>{
+  if(period==='today')return x.date===today()
+  if(period==='month')return x.date?.startsWith(today().slice(0,7))
+  return true
+})
+const stats={
+  val:periodList.reduce((s,x)=>s+(x.total||0),0),
+  count:periodList.length,
+  gold:periodList.reduce((s,x)=>s+(x.items||[]).filter(i=>i.metal==='Gold').reduce((a,b)=>a+(num(b.gross)||0),0),0),
+  silver:periodList.reduce((s,x)=>s+(x.items||[]).filter(i=>i.metal==='Silver').reduce((a,b)=>a+(num(b.gross)||0),0),0)
+}
+const exportToExcel=()=>{
+  if(!list.length){flash('No saved reports to export');return}
+  const headers=['S.No','Date','Certificate No','Owner Name','Customer Phone','Place','Valuer','Total Items','Total Gross Wt (g)','Total Net Wt (g)','Total Pure Wt (g)','Valuation Amount (INR)','Items Summary']
+  const rowsData=list.map((item,idx)=>{
+    const reportRows=(item.items||[]).map(i=>({i,c:calc(i,item)}))
+    const gross=reportRows.reduce((s,x)=>s+(num(x.i.gross)||0),0)
+    const net=reportRows.reduce((s,x)=>s+(x.c.net||0),0)
+    const pure=reportRows.reduce((s,x)=>s+(x.c.pure||0),0)
+    const itemsSummary=(item.items||[]).filter(i=>i.name||i.gross).map(i=>`${i.name} (${i.metal} ${i.gross||0}g)`).join('; ')
+    return[
+      idx+1,
+      `"${item.date||''}"`,
+      `"${item.cert||''}"`,
+      `"${(item.owner||'').replace(/"/g,'""')}"`,
+      `"${item.phone||''}"`,
+      `"${(item.place||'').replace(/"/g,'""')}"`,
+      `"${(item.valuer||'').replace(/"/g,'""')}"`,
+      item.items?.length||0,
+      gross.toFixed(3),
+      net.toFixed(3),
+      pure.toFixed(3),
+      item.total||0,
+      `"${itemsSummary.replace(/"/g,'""')}"`
+    ].join(',')
+  })
+  const csvContent='\uFEFF'+[headers.join(','),...rowsData].join('\r\n')
+  const blob=new Blob([csvContent],{type:'text/csv;charset=utf-8;'})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url
+  a.download=`Jewellery_Valuations_${today()}.csv`
+  a.click()
+  setTimeout(()=>URL.revokeObjectURL(url),500)
+  flash('Excel CSV downloaded 📊')
+}
+const sendCustomerWhatsApp=target=>{
+  const item=target||r
+  const targetRows=item.items?item.items.map(i=>({i,c:calc(i,item)})):rows
+  const targetTotal=item.total||total
+  const phoneClean=(item.phone||'').replace(/[^0-9]/g,'')
+  const phoneNum=phoneClean.length===10?'91'+phoneClean:(phoneClean.length>10?phoneClean:null)
+  const lines=[
+    `*${shop.name||'Sri Vijaya Laxmi Jewellery Works'}*`,
+    `Jewellery Valuation Certificate`,
+    `────────────────────────`,
+    `Customer: ${item.owner||'Valued Customer'}`,
+    `Date: ${item.date.split('-').reverse().join('-')}`,
+    item.cert?`Certificate No: ${item.cert}`:null,
+    `────────────────────────`,
+    ...targetRows.filter(({i})=>i.name||i.gross||i.fixed).map(({i,c},n)=>
+      `${n+1}. ${i.name} (${i.metal}) - ${i.gross?num(i.gross).toFixed(3)+'g ':''}₹${c.value.toLocaleString('en-IN')}`
+    ),
+    `────────────────────────`,
+    `*TOTAL VALUATION: ₹ ${targetTotal.toLocaleString('en-IN')}/-*`,
+    `Valuer: ${item.valuer||cfg.valuer}`,
+    shop.phone?`Shop Phone: ${shop.phone}`:null,
+    `\nThank you for choosing ${shop.name}!`
+  ].filter(Boolean).join('\n')
+
+  if(phoneNum){
+    window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(lines)}`)
+  }else{
+    navigator.share?navigator.share({title:'Valuation Certificate',text:lines}).catch(()=>{}) : window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`)
+  }
+}
 
 return <div className="app">
 <div className="noprint app-header"><h1>{shop.name || 'Sri Vijaya Laxmi Jewellery Works'}</h1>
@@ -123,7 +200,7 @@ return <div className="app">
 <div className="noprint">
 <div className="card"><h2>Today's rates</h2><div className="g2"><L t="Silver ₹ per gram"><N value={r.silverG} onChange={e=>rate('silverG',e.target.value)}/></L><L t="Gold ₹ per gram"><N value={r.goldG} onChange={e=>rate('goldG',e.target.value)}/></L></div><p className="val">Report shows silver ₹{(ratePerGram(r,'Silver')*1000).toLocaleString('en-IN')} per kg, gold ₹{(ratePerGram(r,'Gold')*10).toLocaleString('en-IN')} per 10 g</p></div>
 <div className="card"><h2>Details</h2><div className="g2"><L t="Date of Valuation"><input type="date" value={r.date} onChange={e=>up('date',e.target.value)}/></L><L t="Certificate no."><input value={r.cert} onChange={e=>up('cert',e.target.value)}/></L></div>
-<L t="Name of the owner(s)"><input list="own" value={r.owner} onChange={e=>up('owner',e.target.value)}/></L><datalist id="own">{owners.map(o=><option key={o} value={o}/>)}</datalist>
+<div className="g2"><L t="Name of the owner(s)"><input list="own" value={r.owner} onChange={e=>up('owner',e.target.value)} placeholder="e.g. Ramesh Kumar"/></L><L t="Customer Mobile / WhatsApp (Optional)"><input type="tel" value={r.phone||''} onChange={e=>up('phone',e.target.value)} placeholder="e.g. 9848012345"/></L></div><datalist id="own">{owners.map(o=><option key={o} value={o}/>)}</datalist>
 <div className="g2"><L t="Name of Valuer"><input value={r.valuer} onChange={e=>up('valuer',e.target.value)}/></L><L t="Valuer title (Footer)"><input value={r.valuerTitle||''} onChange={e=>up('valuerTitle',e.target.value)}/></L></div>
 <L t="Place (Address)"><input value={r.place} onChange={e=>up('place',e.target.value)}/></L>
 <L t="Place (Footer)"><input value={r.footerPlace||''} onChange={e=>up('footerPlace',e.target.value)} placeholder="e.g. Hyderabad"/></L></div>
@@ -160,7 +237,7 @@ return <div className="app">
 <tr><td colSpan="9"><b>Total</b></td><td className="r"><b>{total.toLocaleString('en-IN')}/-</b></td></tr></tbody></table></div>
 {shop.note&&<p>{shop.note}</p>}<div className="sg"><span><b>Place:</b> {r.footerPlace||''}<br/><b>Date:</b> {r.date.split('-').reverse().join('-')}</span><span style={{textAlign:'center'}}><b>{r.valuer}</b><br/>{r.valuerTitle||cfg.valuerTitle||'Valuer'}</span></div></div></>}
 
-{tab==='new'&&<div className="bar noprint"><button className="p" onClick={save}>💾 Save</button><button onClick={()=>{if(requireValid())window.print()}}>🖨️ Print / PDF</button><button onClick={share}>↗️ Share</button><button className="x" onClick={()=>{setR(fresh());window.scrollTo(0,0)}}>➕ New</button></div>}
+{tab==='new'&&<div className="bar noprint"><button className="p" onClick={save}>💾 Save</button><button onClick={()=>{if(requireValid())window.print()}}>🖨️ Print / PDF</button><button style={{background:'#25d366',color:'#fff',borderColor:'#25d366'}} onClick={()=>sendCustomerWhatsApp(r)}>📲 WhatsApp Customer</button><button onClick={share}>↗️ Share</button><button className="x" onClick={()=>{setR(fresh());window.scrollTo(0,0)}}>➕ New</button></div>}
 
 {tab==='calc'&&<>
 <div className="calc-card noprint">
@@ -340,9 +417,51 @@ return <div className="app">
 </div>
 </>}
 
-{tab==='saved'&&<div className="card noprint"><h2>Saved reports</h2><input placeholder="Search owner, certificate or date" value={q} onChange={e=>setQ(e.target.value)}/>
-{shown.length?shown.map(x=><div className="li" key={x.id}><div><b>{x.owner||'(no owner)'}</b><small>{x.date} · {x.cert||'No cert'} · {inr(x.total)}</small></div>
-<div className="li-actions"><button onClick={()=>{setR(x);setTab('new')}}>Open</button><button className="x" onClick={()=>{setR({...x,id:uid(),date:today(),version:0});setTab('new')}}>Copy</button><button className="x danger" onClick={async()=>{if(confirm('Delete this report?')){const result=await deleteCloudReport(x.id,x.version);if(result.ok){setList(l=>l.filter(y=>y.id!==x.id));flash('Report deleted')}else flash(result.error||'Could not delete report')}}}>Delete</button></div></div>):<p>No saved reports yet.</p>}</div>}
+{tab==='saved'&&<div className="noprint">
+<div className="analytics-card">
+  <div className="analytics-head">
+    <h3>📈 Valuation Analytics</h3>
+    <div className="analytics-pills">
+      <button className={period==='all'?'on':''} onClick={()=>setPeriod('all')}>All Time</button>
+      <button className={period==='month'?'on':''} onClick={()=>setPeriod('month')}>This Month</button>
+      <button className={period==='today'?'on':''} onClick={()=>setPeriod('today')}>Today</button>
+    </div>
+  </div>
+  <div className="analytics-grid">
+    <div className="stat-box">
+      <div className="lbl">Total Evaluated</div>
+      <div className="val">₹ {stats.val.toLocaleString('en-IN')}</div>
+    </div>
+    <div className="stat-box">
+      <div className="lbl">Certificates</div>
+      <div className="val">{stats.count}</div>
+    </div>
+    <div className="stat-box">
+      <div className="lbl">Gold Evaluated</div>
+      <div className="val">{stats.gold.toFixed(3)} g</div>
+    </div>
+    <div className="stat-box">
+      <div className="lbl">Silver Evaluated</div>
+      <div className="val">{stats.silver.toFixed(3)} g</div>
+    </div>
+  </div>
+</div>
+
+<div className="card">
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12,flexWrap:'wrap',gap:8}}>
+    <h2 style={{margin:0}}>Saved reports ({shown.length})</h2>
+    <button className="p" style={{fontSize:12,padding:'6px 12px'}} onClick={exportToExcel}>📊 Download Excel</button>
+  </div>
+  <input placeholder="Search owner, phone, certificate or date" value={q} onChange={e=>setQ(e.target.value)}/>
+  {shown.length?shown.map(x=><div className="li" key={x.id}><div><b>{x.owner||'(no owner)'}</b><small>{x.date} · {x.cert||'No cert'} · {inr(x.total)}{x.phone?` · 📞 ${x.phone}`:''}</small></div>
+  <div className="li-actions">
+    <button onClick={()=>{setR(x);setTab('new')}}>Open</button>
+    <button className="x" style={{background:'#25d366',color:'#fff',borderColor:'#25d366'}} onClick={()=>sendCustomerWhatsApp(x)}>📲 WhatsApp</button>
+    <button className="x" onClick={()=>{setR({...x,id:uid(),date:today(),version:0});setTab('new')}}>Copy</button>
+    <button className="x danger" onClick={async()=>{if(confirm('Delete this report?')){const result=await deleteCloudReport(x.id,x.version);if(result.ok){setList(l=>l.filter(y=>y.id!==x.id));flash('Report deleted')}else flash(result.error||'Could not delete report')}}}>Delete</button>
+  </div></div>):<p>No saved reports yet.</p>}
+</div>
+</div>}
 
 {tab==='set'&&<div className="noprint"><div className="card"><h2>☁️ Secure cloud sync</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Reports are loaded from the authenticated cloud account. Conflicts must be refreshed before saving.</p><button onClick={async()=>{const result=await syncAllReports();if(result.ok){setList(result.reports);flash('Cloud sync complete')}else flash(result.error||'Cloud sync failed')}}>🔄 Refresh from cloud</button></div>
 <div className="card"><h2>Defaults for new reports</h2><L t="Certificate no."><input value={cfg.cert||''} onChange={e=>{setCfg({...cfg,cert:e.target.value});flash('Settings saved')}}/></L><div className="g2"><L t="Valuer name"><input value={cfg.valuer} onChange={e=>{setCfg({...cfg,valuer:e.target.value});flash('Settings saved')}}/></L><L t="Valuer title (Footer)"><input value={cfg.valuerTitle||'Valuer'} onChange={e=>{setCfg({...cfg,valuerTitle:e.target.value});flash('Settings saved')}}/></L></div><L t="Place"><input value={cfg.place} onChange={e=>{setCfg({...cfg,place:e.target.value});flash('Settings saved')}}/></L></div>

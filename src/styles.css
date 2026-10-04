@@ -131,7 +131,17 @@ button.x.danger:active{background:#fde8e8}
 .calc-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .calc-actions button{flex:1;min-width:140px}
 .calc-add-btn{width:100%;margin-bottom:14px;border-style:dashed;border-width:2px;border-color:#caa94f;color:#7a5a00;background:#fffcf5}
-.calc-add-btn:active{background:#f8f0d8}
+/* Analytics Dashboard */
+.analytics-card{background:#fffdf8;border:1.5px solid #ebd9a2;border-radius:10px;padding:12px;margin-bottom:14px}
+.analytics-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px}
+.analytics-head h3{margin:0;font-size:15px;color:#856404;font-family:inherit;font-weight:700}
+.analytics-pills{display:flex;gap:6px}
+.analytics-pills button{min-height:26px;padding:0 10px;font-size:11.5px;border-radius:13px;border:1px solid #dcd3c8;background:#fff;color:#554c47}
+.analytics-pills button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.stat-box{background:#fff;border:1px solid #ebd9a2;border-radius:8px;padding:10px 8px;text-align:center}
+.stat-box .lbl{font-size:11px;color:#7a6c62;text-transform:uppercase;letter-spacing:0.4px;font-weight:600}
+.stat-box .val{font-size:16px;font-weight:700;color:var(--ac);margin-top:2px}
 
 /* Print slip for calculator */
 .calc-slip{display:none}
