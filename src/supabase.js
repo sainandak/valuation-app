@@ -53,9 +53,15 @@ export async function saveCloudReport(report) {
     }
     if (userId) payload.user_id = userId
 
-    const { error } = await supabase.from('reports').upsert(payload)
+    let { error } = await supabase.from('reports').upsert(payload)
+    if (error && error.message && error.message.includes('user_id')) {
+      delete payload.user_id
+      delete payload.version
+      const retry = await supabase.from('reports').upsert(payload)
+      error = retry.error
+    }
     if (error) throw error
-    return {ok:true,report:{...report,version:payload.version,updated_at:payload.updated_at}}
+    return {ok:true,report:{...report,version:payload.version||1,updated_at:payload.updated_at}}
   } catch (err) {
     console.warn('Supabase save failed:', err.message)
     return {ok:false,error:err.message}
