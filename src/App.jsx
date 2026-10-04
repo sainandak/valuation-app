@@ -391,15 +391,15 @@ return <div className="app">
     <thead>
       <tr>
         <th className="c" style={{width:'4%'}}>#</th>
-        <th style={{width:'20%'}}>Item</th>
+        <th style={{width:'17%'}}>Item</th>
         <th className="c" style={{width:'8%'}}>Metal</th>
-        <th className="r" style={{width:'10%'}}>Gross (g)</th>
-        <th className="r" style={{width:'10%'}}>Stone (g)</th>
-        <th className="r" style={{width:'10%'}}>Net (g)</th>
+        <th className="r" style={{width:'9%'}}>Gross (g)</th>
+        <th className="r" style={{width:'9%'}}>Stone (g)</th>
+        <th className="r" style={{width:'9%'}}>Net (g)</th>
         <th className="c" style={{width:'8%'}}>Purity</th>
-        <th className="r" style={{width:'10%'}}>Fine (g)</th>
-        <th className="r" style={{width:'9%'}}>Rate (₹/g)</th>
-        <th className="r" style={{width:'11%'}}>Value (₹)</th>
+        <th className="r" style={{width:'9%'}}>Fine (g)</th>
+        <th className="r" style={{width:'12%'}}>Rate (₹/g)</th>
+        <th className="r" style={{width:'15%'}}>Value (₹)</th>
       </tr>
     </thead>
     <tbody>
@@ -420,12 +420,12 @@ return <div className="app">
       <tr style={{fontWeight:'bold',background:'#f8f4ec'}}>
         <td colSpan="3" className="c">Total</td>
         <td className="r">{cTotalGross.toFixed(3)}</td>
-        <td className="r">{cTotalStone?cTotalStone.toFixed(3):'0.000'}</td>
+        <td className="r">{cTotalStone?cTotalStone.toFixed(3):'Nil'}</td>
         <td className="r">{cTotalNet.toFixed(3)}</td>
         <td className="c">-</td>
         <td className="r">{cTotalFine.toFixed(3)}</td>
         <td className="r">-</td>
-        <td className="r">₹{cTotalVal.toLocaleString('en-IN')}/-</td>
+        <td className="r">₹ {cTotalVal.toLocaleString('en-IN')}/-</td>
       </tr>
     </tbody>
   </table>

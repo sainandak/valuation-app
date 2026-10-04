@@ -152,11 +152,11 @@ button.x.danger:active{background:#fde8e8}
 .calc-slip{display:none}
 @media print{
   .calc-slip{display:block;max-width:880px;width:100%;margin:12px auto;padding:16px 20px;background:#fff;color:#111;font-size:12.5px}
-  .calc-slip table{width:100%;border-collapse:collapse;margin:16px 0;table-layout:fixed}
+  .calc-slip table{width:100%;border-collapse:collapse;margin:16px 0}
   .calc-slip th,.calc-slip td{border:1px solid #777;padding:6px 6px;text-align:left;vertical-align:middle}
-  .calc-slip th{background:#f3eedf;font-weight:700;font-size:11.5px;white-space:nowrap;letter-spacing:0.2px}
+  .calc-slip th{background:#f3eedf;font-weight:700;font-size:11.5px;letter-spacing:0.2px}
   .calc-slip .c{text-align:center}
-  .calc-slip .r{text-align:right;white-space:nowrap}
+  .calc-slip .r{text-align:right}
 }
 
 /* Print Rules - Completely Unaltered for PDF */
