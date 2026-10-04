@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL || 'https://kqhmpqideymdocqlsjcm.supabase.co'
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaG1wcWlkZXltZG9jcWxzamNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwODc1MTAsImV4cCI6MjEwNjY2MzUxMH0.OEAeXHnaFkP7BqumbqTCsmncWDgK_enBzD_gAVEXChk'
+const url = import.meta.env.VITE_SUPABASE_URL
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY
 // The anonymous key is public by design. RLS and authenticated RPCs, never a
 // browser service-role key, are responsible for protecting data.
 export const supabase = url && key ? createClient(url, key) : null
@@ -14,7 +14,8 @@ export async function getCloudReports() {
   try {
     const { data, error } = await supabase
       .from('reports')
-      .select('*')
+      .select('id, data, version, updated_at')
+      .is('deleted_at', null)
       .order('updated_at', { ascending: false })
     if (error) throw error
     return {ok:true,reports:(data || []).map(r => ({...r.data,id:r.id,version:r.version,updated_at:r.updated_at}))}
@@ -28,40 +29,9 @@ export async function getCloudReports() {
 export async function saveCloudReport(report) {
   if(!supabase)return unavailable()
   try {
-    // 1. Try custom RPC function if created
-    const rpcRes = await supabase.rpc('save_report',{p_report:report,p_expected_version:report.version||0})
-    if (!rpcRes.error && rpcRes.data) {
-      return {ok:true,report:{...(rpcRes.data.data||report),id:rpcRes.data.id||report.id,version:rpcRes.data.version||1,updated_at:rpcRes.data.updated_at}}
-    }
-  } catch (err) {
-    // continue to fallback
-  }
-
-  // 2. Direct table upsert fallback (standard Supabase table)
-  try {
-    const { data: userData } = await supabase.auth.getUser().catch(()=>({data:null}))
-    const userId = userData?.user?.id
-    const payload = {
-      id: report.id,
-      date: report.date,
-      owner: report.owner || '',
-      cert: report.cert || '',
-      total: report.total || 0,
-      data: report,
-      version: (report.version || 0) + 1,
-      updated_at: new Date().toISOString()
-    }
-    if (userId) payload.user_id = userId
-
-    let { error } = await supabase.from('reports').upsert(payload)
-    if (error && error.message && error.message.includes('user_id')) {
-      delete payload.user_id
-      delete payload.version
-      const retry = await supabase.from('reports').upsert(payload)
-      error = retry.error
-    }
+    const {data,error} = await supabase.rpc('save_report',{p_report:report,p_expected_version:report.version||0})
     if (error) throw error
-    return {ok:true,report:{...report,version:payload.version||1,updated_at:payload.updated_at}}
+    return {ok:true,report:{...data.data,id:data.id,version:data.version,updated_at:data.updated_at}}
   } catch (err) {
     console.warn('Supabase save failed:', err.message)
     return {ok:false,error:err.message}
@@ -72,14 +42,7 @@ export async function saveCloudReport(report) {
 export async function deleteCloudReport(id,version) {
   if(!supabase)return unavailable()
   try {
-    const rpcRes = await supabase.rpc('delete_report',{p_id:id,p_expected_version:version})
-    if (!rpcRes.error) return {ok:true}
-  } catch (err) {
-    // continue to fallback
-  }
-
-  try {
-    const { error } = await supabase.from('reports').delete().eq('id',id)
+    const { error } = await supabase.rpc('delete_report',{p_id:id,p_expected_version:version})
     if (error) throw error
     return {ok:true}
   } catch (err) {
