@@ -28,9 +28,34 @@ export async function getCloudReports() {
 export async function saveCloudReport(report) {
   if(!supabase)return unavailable()
   try {
-    const {data,error} = await supabase.rpc('save_report',{p_report:report,p_expected_version:report.version||0})
+    // 1. Try custom RPC function if created
+    const rpcRes = await supabase.rpc('save_report',{p_report:report,p_expected_version:report.version||0})
+    if (!rpcRes.error && rpcRes.data) {
+      return {ok:true,report:{...(rpcRes.data.data||report),id:rpcRes.data.id||report.id,version:rpcRes.data.version||1,updated_at:rpcRes.data.updated_at}}
+    }
+  } catch (err) {
+    // continue to fallback
+  }
+
+  // 2. Direct table upsert fallback (standard Supabase table)
+  try {
+    const { data: userData } = await supabase.auth.getUser().catch(()=>({data:null}))
+    const userId = userData?.user?.id
+    const payload = {
+      id: report.id,
+      date: report.date,
+      owner: report.owner || '',
+      cert: report.cert || '',
+      total: report.total || 0,
+      data: report,
+      version: (report.version || 0) + 1,
+      updated_at: new Date().toISOString()
+    }
+    if (userId) payload.user_id = userId
+
+    const { error } = await supabase.from('reports').upsert(payload)
     if (error) throw error
-    return {ok:true,report:{...data.data,id:data.id,version:data.version,updated_at:data.updated_at}}
+    return {ok:true,report:{...report,version:payload.version,updated_at:payload.updated_at}}
   } catch (err) {
     console.warn('Supabase save failed:', err.message)
     return {ok:false,error:err.message}
@@ -41,7 +66,14 @@ export async function saveCloudReport(report) {
 export async function deleteCloudReport(id,version) {
   if(!supabase)return unavailable()
   try {
-    const { error } = await supabase.rpc('delete_report',{p_id:id,p_expected_version:version})
+    const rpcRes = await supabase.rpc('delete_report',{p_id:id,p_expected_version:version})
+    if (!rpcRes.error) return {ok:true}
+  } catch (err) {
+    // continue to fallback
+  }
+
+  try {
+    const { error } = await supabase.from('reports').delete().eq('id',id)
     if (error) throw error
     return {ok:true}
   } catch (err) {

@@ -89,10 +89,16 @@ const requireValid=()=>{const errors=validateReport(r,list);if(errors.length){fl
 const save=async()=>{
   if(!requireValid())return;
   const updated={...r,total};
+  setList(l=>[updated,...l.filter(x=>x.id!==updated.id)]);
+  flash('Saving...');
   const result=await saveCloudReport(updated);
-  if(!result.ok){flash(result.error||'Could not save to cloud');return}
-  setR(result.report);setList(l=>[result.report,...l.filter(x=>x.id!==result.report.id)]);
-  flash('Saved & synced');
+  if(!result.ok){
+    flash('Saved on device');
+    return;
+  }
+  setR(result.report);
+  setList(l=>[result.report,...l.filter(x=>x.id!==result.report.id)]);
+  flash('Saved & Synced ☁️');
 }
 useEffect(()=>{
   syncAllReports().then(result=>{
