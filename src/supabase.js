@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+const url = import.meta.env.VITE_SUPABASE_URL || 'https://kqhmpqideymdocqlsjcm.supabase.co'
+const key = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxaG1wcWlkZXltZG9jcWxzamNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwODc1MTAsImV4cCI6MjEwNjY2MzUxMH0.OEAeXHnaFkP7BqumbqTCsmncWDgK_enBzD_gAVEXChk'
 // The anonymous key is public by design. RLS and authenticated RPCs, never a
 // browser service-role key, are responsible for protecting data.
 export const supabase = url && key ? createClient(url, key) : null
