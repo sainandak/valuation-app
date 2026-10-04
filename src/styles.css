@@ -9,6 +9,11 @@ body{margin:0;background:var(--bg);color:#231c19;font:15px/1.45 system-ui,-apple
 }
 
 /* Header & Brand */
+.user-bar{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 8px;margin-bottom:8px;border-bottom:1px solid #ebdcd0}
+.user-info{font-size:12.5px;color:var(--mut);display:flex;align-items:center;gap:6px}
+.user-info strong{color:#3a2e2b;font-weight:600}
+.btn-logout{min-height:28px;padding:2px 10px;font-size:12px;border-radius:6px;border:1px solid #d9d0c5;background:#fff;color:#6b625d;cursor:pointer}
+.btn-logout:hover{background:#fdf2f2;color:#b22222;border-color:#f2c6c6}
 .app-header{text-align:center;margin-bottom:14px}
 .app-header h1,h1{font:700 clamp(18px, 5.2vw, 24px) Georgia,serif;color:var(--ac);margin:4px 0 4px;letter-spacing:-0.2px;line-height:1.25;text-align:center}
 .app-sub{font-size:clamp(11px, 3.2vw, 13px);font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin:0 0 12px;text-align:center}

@@ -1,6 +1,6 @@
 import {useState,useEffect} from 'react'
 import {calc,inr,num,ratePerGram,validateReport} from './valuation.js'
-import {saveCloudReport,deleteCloudReport,syncAllReports} from './supabase.js'
+import {saveCloudReport,deleteCloudReport,syncAllReports,supabase} from './supabase.js'
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
 function useLS(k,d){const[v,s]=useState(()=>load(k,d));useEffect(()=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},[k,v]);return[v,s]}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6)
@@ -27,7 +27,23 @@ const DEF=[
 const L=({t,children})=><label>{t}{children}</label>
 const N=p=><input type="number" inputMode="decimal" step="any" {...p}/>
 
-export default function App(){
+export default function App({ user }){
+const handleSignOut=async()=>{if(supabase)await supabase.auth.signOut()}
+useEffect(()=>{
+  if(!supabase)return
+  let timer
+  const resetTimer=()=>{
+    clearTimeout(timer)
+    timer=setTimeout(()=>{supabase.auth.signOut()},30*60*1000)
+  }
+  const events=['mousemove','keydown','click','scroll','touchstart']
+  events.forEach(e=>window.addEventListener(e,resetTimer,{passive:true}))
+  resetTimer()
+  return()=>{
+    clearTimeout(timer)
+    events.forEach(e=>window.removeEventListener(e,resetTimer))
+  }
+},[])
 const[tab,setTab]=useState('calc')
 const[cfg,setCfg]=useLS('cfg',{valuer:'',valuerTitle:'Valuer',place:'',silver:'',gold:''})
 const[presets,setPresets]=useLS('presets',DEF)
@@ -192,7 +208,9 @@ const sendCustomerWhatsApp=target=>{
 }
 
 return <div className="app">
-<div className="noprint app-header"><h1>{shop.name || 'Sri Vijaya Laxmi Jewellery Works'}</h1>
+<div className="noprint app-header">
+{user&&<div className="user-bar"><div className="user-info"><span>👤</span> <strong>{user.email}</strong></div><button className="btn-logout" onClick={handleSignOut} title="Sign out">🚪 Sign out</button></div>}
+<h1>{shop.name || 'Sri Vijaya Laxmi Jewellery Works'}</h1>
 <div className="app-sub">Jewellery Valuation Center</div>
 <nav>{[['calc','Quick Calc'],['new','Report'],['saved','Saved'],['set','Settings']].map(([k,t])=><button key={k} className={tab===k?'on':''} onClick={()=>setTab(k)}>{t}</button>)}</nav></div>
 
@@ -463,7 +481,8 @@ return <div className="app">
 </div>
 </div>}
 
-{tab==='set'&&<div className="noprint"><div className="card"><h2>☁️ Secure cloud sync</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Reports are loaded from the authenticated cloud account. Conflicts must be refreshed before saving.</p><button onClick={async()=>{const result=await syncAllReports();if(result.ok){setList(result.reports);flash('Cloud sync complete')}else flash(result.error||'Cloud sync failed')}}>🔄 Refresh from cloud</button></div>
+{tab==='set'&&<div className="noprint"><div className="card"><h2>👤 Staff Account & Security</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Logged in as <b>{user?.email||'Staff'}</b>. Inactivity auto-lock logs out after 30 minutes of idle time.</p><button className="x danger" onClick={handleSignOut}>🚪 Sign out</button></div>
+<div className="card"><h2>☁️ Secure cloud sync</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Reports are loaded from the authenticated cloud account. Conflicts must be refreshed before saving.</p><button onClick={async()=>{const result=await syncAllReports();if(result.ok){setList(result.reports);flash('Cloud sync complete')}else flash(result.error||'Cloud sync failed')}}>🔄 Refresh from cloud</button></div>
 <div className="card"><h2>Defaults for new reports</h2><L t="Certificate no."><input value={cfg.cert||''} onChange={e=>{setCfg({...cfg,cert:e.target.value});flash('Settings saved')}}/></L><div className="g2"><L t="Valuer name"><input value={cfg.valuer} onChange={e=>{setCfg({...cfg,valuer:e.target.value});flash('Settings saved')}}/></L><L t="Valuer title (Footer)"><input value={cfg.valuerTitle||'Valuer'} onChange={e=>{setCfg({...cfg,valuerTitle:e.target.value});flash('Settings saved')}}/></L></div><L t="Place"><input value={cfg.place} onChange={e=>{setCfg({...cfg,place:e.target.value});flash('Settings saved')}}/></L></div>
 <div className="card"><h2>Shop details (printed on every report)</h2><L t="Shop name"><input value={shop.name} onChange={e=>{setShop({...shop,name:e.target.value});flash('Shop details saved')}}/></L><L t="Address"><input value={shop.addr} onChange={e=>{setShop({...shop,addr:e.target.value});flash('Shop details saved')}}/></L><L t="Phone numbers"><input value={shop.phone} onChange={e=>{setShop({...shop,phone:e.target.value});flash('Shop details saved')}}/></L><L t="Footer note (optional)"><input value={shop.note} onChange={e=>{setShop({...shop,note:e.target.value});flash('Shop details saved')}}/></L>
 <L t="Logo"><input type="file" accept="image/*" onChange={e=>e.target.files[0]&&logo(e.target.files[0])}/></L>{shop.logo&&<p><img src={shop.logo} alt="" style={{maxHeight:60}}/> <button className="x" onClick={()=>{setShop({...shop,logo:''});flash('Logo removed')}}>Remove logo</button></p>}</div>
