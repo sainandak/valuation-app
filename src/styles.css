@@ -169,3 +169,15 @@ button.x.danger:active{background:#fde8e8}
   .tbl-wrap{overflow:visible;margin:10px 0}
   .tbl-wrap table{min-width:100%}
 }
+
+/* Birthday greeting modal */
+.bday-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;animation:bdayFadeIn 0.25s ease-out}
+.bday-modal{background:#fff;border-radius:18px;max-width:390px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 14px 40px rgba(0,0,0,0.25);border:2px solid #b7852a;animation:bdayPop 0.3s cubic-bezier(0.175,0.885,0.32,1.275)}
+.bday-icon{font-size:48px;margin-bottom:10px;animation:bdayBounce 1.6s infinite ease-in-out}
+.bday-title{font:700 24px Georgia,serif;color:#8c1c2c;margin:0 0 10px;letter-spacing:-0.2px}
+.bday-sub{font-size:14.5px;color:#4f4642;line-height:1.5;margin:0 0 22px}
+.bday-btn{width:100%;font-size:15px;padding:11px;border-radius:10px;font-weight:700;background:#8c1c2c;color:#fff;cursor:pointer}
+@keyframes bdayFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes bdayPop{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+@keyframes bdayBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
