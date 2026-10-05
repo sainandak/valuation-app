@@ -28,13 +28,19 @@ const L=({t,children})=><label>{t}{children}</label>
 const N=p=><input type="number" inputMode="decimal" step="any" {...p}/>
 
 export default function App({ user }){
-const handleSignOut=async()=>{if(supabase)await supabase.auth.signOut()}
+const handleSignOut=async()=>{
+  try{sessionStorage.removeItem('bday_greeted')}catch{}
+  if(supabase)await supabase.auth.signOut()
+}
 useEffect(()=>{
   if(!supabase)return
   let timer
   const resetTimer=()=>{
     clearTimeout(timer)
-    timer=setTimeout(()=>{supabase.auth.signOut()},30*60*1000)
+    timer=setTimeout(()=>{
+      try{sessionStorage.removeItem('bday_greeted')}catch{}
+      supabase.auth.signOut()
+    },30*60*1000)
   }
   const events=['mousemove','keydown','click','scroll','touchstart']
   events.forEach(e=>window.addEventListener(e,resetTimer,{passive:true}))
