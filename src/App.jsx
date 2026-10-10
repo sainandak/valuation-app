@@ -28,19 +28,13 @@ const L=({t,children})=><label>{t}{children}</label>
 const N=p=><input type="number" inputMode="decimal" step="any" {...p}/>
 
 export default function App({ user }){
-const handleSignOut=async()=>{
-  try{sessionStorage.removeItem('bday_greeted')}catch{}
-  if(supabase)await supabase.auth.signOut()
-}
+const handleSignOut=async()=>{if(supabase)await supabase.auth.signOut()}
 useEffect(()=>{
   if(!supabase)return
   let timer
   const resetTimer=()=>{
     clearTimeout(timer)
-    timer=setTimeout(()=>{
-      try{sessionStorage.removeItem('bday_greeted')}catch{}
-      supabase.auth.signOut()
-    },30*60*1000)
+    timer=setTimeout(()=>{supabase.auth.signOut()},30*60*1000)
   }
   const events=['mousemove','keydown','click','scroll','touchstart']
   events.forEach(e=>window.addEventListener(e,resetTimer,{passive:true}))
@@ -50,9 +44,6 @@ useEffect(()=>{
     events.forEach(e=>window.removeEventListener(e,resetTimer))
   }
 },[])
-const[bdayEnabled,setBdayEnabled]=useLS('bdayGreeting',true)
-const[showBday,setShowBday]=useState(()=>{try{return!sessionStorage.getItem('bday_greeted')}catch{return true}})
-const closeBday=()=>{try{sessionStorage.setItem('bday_greeted','1')}catch{};setShowBday(false)}
 const[tab,setTab]=useState('calc')
 const[cfg,setCfg]=useLS('cfg',{valuer:'',valuerTitle:'Valuer',place:'',silver:'',gold:''})
 const[presets,setPresets]=useLS('presets',DEF)
@@ -217,7 +208,6 @@ const sendCustomerWhatsApp=target=>{
 }
 
 return <div className="app">
-{bdayEnabled&&showBday&&<div className="bday-overlay noprint" onClick={closeBday}><div className="bday-modal" onClick={e=>e.stopPropagation()}><div className="bday-icon">🎂🎉✨</div><h2 className="bday-title">Happy Birthday Prem Bava!</h2><p className="bday-sub">Wishing you a fantastic year filled with happiness, good health, peace, and great prosperity!</p><button className="p bday-btn" onClick={closeBday}>Thank you! 🍰</button></div></div>}
 <div className="noprint app-header">
 {user&&<div className="user-bar"><div className="user-info"><span>👤</span> <strong>{user.email}</strong></div><button className="btn-logout" onClick={handleSignOut} title="Sign out">🚪 Sign out</button></div>}
 <h1>{shop.name || 'Sri Vijaya Laxmi Jewellery Works'}</h1>
@@ -492,7 +482,6 @@ return <div className="app">
 </div>}
 
 {tab==='set'&&<div className="noprint"><div className="card"><h2>👤 Staff Account & Security</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Logged in as <b>{user?.email||'Staff'}</b>. Inactivity auto-lock logs out after 30 minutes of idle time.</p><button className="x danger" onClick={handleSignOut}>🚪 Sign out</button></div>
-<div className="card"><h2>🎉 Birthday Greeting</h2><div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:12,flexWrap:'wrap'}}><div><div style={{fontWeight:600,fontSize:14}}>Show "Happy Birthday Prem Bava" on login</div><small style={{color:'var(--mut)'}}>Toggle on or off to control the greeting message</small></div><button className={bdayEnabled?'p':'x'} style={{minWidth:95,fontSize:13,padding:'6px 14px'}} onClick={()=>{const next=!bdayEnabled;setBdayEnabled(next);flash(next?'Birthday greeting enabled':'Birthday greeting disabled')}}>{bdayEnabled?'✓ Enabled':'✕ Disabled'}</button></div></div>
 <div className="card"><h2>☁️ Secure cloud sync</h2><p style={{fontSize:13,color:'#554c47',margin:'0 0 10px'}}>Reports are loaded from the authenticated cloud account. Conflicts must be refreshed before saving.</p><button onClick={async()=>{const result=await syncAllReports();if(result.ok){setList(result.reports);flash('Cloud sync complete')}else flash(result.error||'Cloud sync failed')}}>🔄 Refresh from cloud</button></div>
 <div className="card"><h2>Defaults for new reports</h2><L t="Certificate no."><input value={cfg.cert||''} onChange={e=>{setCfg({...cfg,cert:e.target.value});flash('Settings saved')}}/></L><div className="g2"><L t="Valuer name"><input value={cfg.valuer} onChange={e=>{setCfg({...cfg,valuer:e.target.value});flash('Settings saved')}}/></L><L t="Valuer title (Footer)"><input value={cfg.valuerTitle||'Valuer'} onChange={e=>{setCfg({...cfg,valuerTitle:e.target.value});flash('Settings saved')}}/></L></div><L t="Place"><input value={cfg.place} onChange={e=>{setCfg({...cfg,place:e.target.value});flash('Settings saved')}}/></L></div>
 <div className="card"><h2>Shop details (printed on every report)</h2><L t="Shop name"><input value={shop.name} onChange={e=>{setShop({...shop,name:e.target.value});flash('Shop details saved')}}/></L><L t="Address"><input value={shop.addr} onChange={e=>{setShop({...shop,addr:e.target.value});flash('Shop details saved')}}/></L><L t="Phone numbers"><input value={shop.phone} onChange={e=>{setShop({...shop,phone:e.target.value});flash('Shop details saved')}}/></L><L t="Footer note (optional)"><input value={shop.note} onChange={e=>{setShop({...shop,note:e.target.value});flash('Shop details saved')}}/></L>
